@@ -44,5 +44,8 @@ application-API-KEY.yml
 ### logs ###
 .log
 
+### ds_store ###
+.DS_Store
+
 ### envs ###
 .env
