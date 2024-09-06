@@ -20,7 +20,6 @@ public class GameController {
 
     @PostMapping("/start")
     public BaseResponse<PlayerDataFrontDTO> startGameProcess(@RequestBody PlayerDataFrontDTO playerDataFrontDTO) {
-        // Controller는 요청을 Service에 넘기고 결과만 받아서 반환합니다.
         PlayerDataFrontDTO responseDTO = gameService.processGame(playerDataFrontDTO);
         return new BaseResponse<>(responseDTO);
     }

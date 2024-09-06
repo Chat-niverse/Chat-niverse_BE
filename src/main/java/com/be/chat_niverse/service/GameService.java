@@ -100,8 +100,9 @@ public class GameService {
 
             if(aiResponse.getStatus() != null){
                 // 체크 요망
-                gameServiceLogger.info("스테이터스 : {}", aiResponse.getStatus());
+
                 redisManager.setPlayerStatus(username, aiResponse.getStatus());
+                gameServiceLogger.info("redis에 저장된 스테이터스 : {}", redisManager.getPlayerStatus(username));
             }
             if(aiResponse.getLife() != null){
                 gameServiceLogger.info("피통 : {}", aiResponse.getLife());
