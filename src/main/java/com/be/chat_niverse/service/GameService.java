@@ -34,6 +34,7 @@ public class GameService {
         Integer life = (Integer) redisManager.getPlayerLife(username);  // null 가능성을 고려해 Integer로 받음
         Map<String, Integer> inventory = redisManager.getInventory(username);
 
+
         PlayerDataAiDTO playerDataAiDTO;
         // 1이면 시작 username, worldview, charsetting, aim 이 들어감
         if(playerDataFrontDTO.getIsStart() == 1){
@@ -57,8 +58,10 @@ public class GameService {
         }
 
         // AI 모듈로 데이터 전송 및 응답 처리
-        Map<String, Object> aiResponse = sendToAiModule(playerDataAiDTO);
-        // TODO : aiResponse is NULL
+        //Map<String, Object> aiResponse = sendToAiModule(playerDataAiDTO);
+        PlayerDataAiDTO aiResponse = sendToAiModule(playerDataAiDTO);
+        // 테스트용
+        gameServiceLogger.info("목표 : ", aiResponse.getAim());
 
 
         // 여기서부터는 업데이트 데이터 전송
@@ -75,41 +78,45 @@ public class GameService {
 //
 //        redisManager.setTextKeyTextValue(username, (String) aiResponse.get("worldview"), ":worldview");
         String frontText = null;
-        gameServiceLogger.info((String) aiResponse.get("life"));
-        Integer lifeFromAI = Integer.parseInt((String) aiResponse.get("life"));
+        //gameServiceLogger.info((String) aiResponse.get("life"));
+        int lifeFromAI = aiResponse.getLife();
         // 게임 오버
-        if(lifeFromAI == 0 && aiResponse.get("gptsays") == null){
-            frontText = (String) aiResponse.get("playlog");
+        if(lifeFromAI == 0 && aiResponse.getGptsays() == null){
+            frontText = aiResponse.getPlaylog();
             redisManager.deleteValue(username);
         }
         // 게임 엔딩
-        else if(aiResponse.get("gptsays") != null){
-            frontText = (String) aiResponse.get("playlog") + (String) aiResponse.get("gptsays");
+        else if(aiResponse.getGptsays() != null){
+            frontText = aiResponse.getPlaylog() + aiResponse.getGptsays();
             redisManager.deleteValue(username);
         }
         // 게임 진행
         else{
-            redisManager.setTextKeyTextValue(username, (String) aiResponse.get("worldview"), ":worldview");
-            redisManager.setTextKeyTextValue(username, (String) aiResponse.get("charsetting"), ":charsetting");
-            redisManager.setTextKeyTextValue(username, (String) aiResponse.get("aim"), ":aim");
+            redisManager.setTextKeyTextValue(username, aiResponse.getWorldview(), ":worldview");
+            redisManager.setTextKeyTextValue(username, aiResponse.getCharsetting(), ":charsetting");
+            redisManager.setTextKeyTextValue(username, aiResponse.getAim(), ":aim");
 
-            frontText = (String) aiResponse.get("playlog");
+            frontText = aiResponse.getPlaylog();
             String savedText = redisManager.getTextKeyTextValue(username, ":playlog");
             savedText += " ";
             savedText = savedText.concat(frontText);
             redisManager.setTextKeyTextValue(username, savedText, ":playlog");
 
-            if(aiResponse.get("status") != null){
+            if(aiResponse.getStatus() != null){
                 // 체크 요망
-                redisManager.setPlayerStatus(username, (Map<String, Integer>) aiResponse.get("status"));
+                gameServiceLogger.info("스테이터스 : ", aiResponse.getStatus());
+                redisManager.setPlayerStatus(username, aiResponse.getStatus());
             }
-            if(aiResponse.get("life") != null){
-                redisManager.setPlayerLife(username, Integer.parseInt((String) aiResponse.get("life")));
+            if(aiResponse.getLife() != null){
+                gameServiceLogger.info("피통 : ", aiResponse.getLife());
+                Map<String, Integer> playerStatus = aiResponse.getStatus();
+                redisManager.setPlayerLife(username,playerStatus.get("life"));
             }
-            if(aiResponse.get("inventory") != null){
-                Map<Object, Object> rawInventory = (Map<Object, Object>) aiResponse.get("inventory");
-                for (Map.Entry<Object, Object> entry : rawInventory.entrySet()) {
-                    redisManager.setItemToInventory(username, (String) entry.getKey(), Integer.parseInt((String) entry.getValue()));
+            if(aiResponse.getInventory() != null){
+                gameServiceLogger.info("인벤토리 ", aiResponse.getInventory());
+                Map<String, Integer> rawInventory = aiResponse.getInventory();
+                for (Map.Entry<String, Integer> entry : rawInventory.entrySet()) {
+                    redisManager.setItemToInventory(username, entry.getKey(), entry.getValue());
                 }
             }
 
@@ -132,13 +139,14 @@ public class GameService {
                 .charsetting(null)
                 .aim(null)
                 .status(updatedStatus)
-                .life(Integer.parseInt((String)redisManager.getPlayerLife(username)))
+                // TODO : life가 null임
+                .life((int) redisManager.getPlayerLife(username))
                 .inventory(updatedInventory)
                 .isfull(isFull)
                 .playlog(redisManager.getTextKeyTextValue(username, ":playlog"))
-                .gptsays((String) aiResponse.get("gptsays"))
-                .choices((Map<String, String>)aiResponse.get("choices"))
-                .imageurl((String) aiResponse.get("imageurl"))
+                .gptsays(aiResponse.getGptsays())
+                .choices(aiResponse.getChoices())
+                .imageurl(aiResponse.getImageurl())
                 .build();
     }
 
@@ -161,7 +169,7 @@ public class GameService {
     }
 
     // AI 모듈에 데이터 전송 및 응답 받기
-    private Map<String, Object> sendToAiModule(PlayerDataAiDTO playerDataAiDTO) {
+    private PlayerDataAiDTO sendToAiModule(PlayerDataAiDTO playerDataAiDTO) {
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.set("Content-Type", "application/json");
@@ -170,10 +178,12 @@ public class GameService {
         String aiUrl = "http://52.79.97.201:5000/ai/process";
 
         try {
-            ResponseEntity<Map> responseEntity = restTemplate.exchange(aiUrl, HttpMethod.POST, request, Map.class);
+            // AI 모듈에서 통신할 때 getBody하면 ResponseEntity에 설정한 제네릭 T 값으로 반환해줌.
+            // 여기서 DTO 클래스를 T로 설정하고 DTO.class 파일을 파라미터로 주면 됨.
+            ResponseEntity<PlayerDataAiDTO> responseEntity = restTemplate.exchange(aiUrl, HttpMethod.POST, request, PlayerDataAiDTO.class);
 
             // 응답 내용 확인
-            Map<String, Object> aiResponse = responseEntity.getBody();
+            PlayerDataAiDTO aiResponse = responseEntity.getBody();
             gameServiceLogger.info("AI 응답: " + aiResponse);
             return aiResponse;
 
