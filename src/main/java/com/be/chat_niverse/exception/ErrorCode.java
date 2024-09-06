@@ -11,7 +11,7 @@ public enum ErrorCode {
     /**
      * 게임 코어 에러
      */
-
+    PLAYER_DATA_SAVE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "플레이어 데이터를 AI한테 받아서 업데이트하지 못했습니다."),
 
     /**
      * GPT 관련 에러
