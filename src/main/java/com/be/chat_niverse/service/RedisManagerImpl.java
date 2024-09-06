@@ -106,6 +106,8 @@ public class RedisManagerImpl implements RedisManager {
         return status;
     }
 
+
+
     /*
     사용 방법
     Integer strength = getPlayerStrength("player1");

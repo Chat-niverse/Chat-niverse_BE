@@ -8,6 +8,8 @@ import java.util.Map;
 @Getter
 @Builder
 public class PlayerDataFrontDTO {
+    private int isStart; // 시작인지 판단
+
     private String username; // 플레이어 닉네임
     private String worldview; // 플레이어가 설정한 세계관
     private String charsetting; // 캐릭터 설정
