@@ -71,12 +71,13 @@ public class RedisManagerImpl implements RedisManager {
     저장 방법
      */
 
-    public void setPlayerStatus(String username, Map<String, Integer> status) {
+    public void setPlayerStatus(String username, Map<String, String> status) {
         String key = username + ":status";
 
         // 스탯이 0 미만으로 떨어지지 않도록 제약을 설정
         status.forEach((stat, value) -> {
-            if (value < 0) {
+            int intvalue = Integer.parseInt(value);
+            if (intvalue < 0) {
                 throw new IllegalArgumentException(stat + " cannot be less than 0");
             }
         });
@@ -93,14 +94,15 @@ public class RedisManagerImpl implements RedisManager {
     });
      */
     // 플레이어 스테이터스 조회
-    public Map<String, Integer> getPlayerStatus(String username) {
+    public Map<String, String> getPlayerStatus(String username) {
         String key = username + ":status";
         Map<Object, Object> rawStatus = redisTemplate.opsForHash().entries(key);
 
         // HashMap으로 변환하여 반환
-        Map<String, Integer> status = new HashMap<>();
+        // Redis Hashmap은 string string
+        Map<String, String> status = new HashMap<>();
         for (Map.Entry<Object, Object> entry : rawStatus.entrySet()) {
-            status.put((String) entry.getKey(), (Integer) entry.getValue());
+            status.put((String) entry.getKey(), (String) entry.getValue());
         }
 
         return status;
@@ -120,7 +122,7 @@ public class RedisManagerImpl implements RedisManager {
     }
 
     // 인벤토리에 새 아이템 추가
-    public void addItemToInventory(String username, String item, int quantity) {
+    public void addItemToInventory(String username, String item, String quantity) {
         String key = username + ":inventory";
         redisTemplate.opsForHash().put(key, item, quantity);
     }
@@ -140,22 +142,21 @@ public class RedisManagerImpl implements RedisManager {
     });
 
      */
-    public Map<String, Integer> getInventory(String username) {
+    public Map<String, String> getInventory(String username) {
         String key = username + ":inventory";
         Map<Object, Object> rawInventory = redisTemplate.opsForHash().entries(key);
 
         // HashMap으로 변환하여 반환
-        Map<String, Integer> inventory = new HashMap<>();
+        Map<String, String> inventory = new HashMap<>();
 
         for (Map.Entry<Object, Object> entry : rawInventory.entrySet()) {
             String item = (String) entry.getKey();
-            Integer quantity = (Integer) entry.getValue();
-
+            String value = (String) entry.getValue();
             // 수량이 0인 아이템은 삭제
-            if (quantity == 0) {
+            if (value.equals("0")) {
                 redisTemplate.opsForHash().delete(key, item);
             } else {
-                inventory.put(item, quantity);  // 0이 아닌 아이템만 인벤토리에 추가
+                inventory.put(item, (String) entry.getValue());  // 0이 아닌 아이템만 인벤토리에 추가
             }
         }
 
@@ -177,9 +178,9 @@ public class RedisManagerImpl implements RedisManager {
     }
 
     // 플레이어 라이프 관리
-    public void setPlayerLife(String username, int life) {
+    public void setPlayerLife(String username, String life) {
         String key = username+":life";
-        if (life >= 0 && life <= 3) {
+        if (Integer.parseInt(life) >= 0 && Integer.parseInt(life) <= 3) {
             redisTemplate.opsForValue().set(key, life);
         } else {
             throw new IllegalArgumentException("Life value must be between 0 and 3.");
@@ -193,7 +194,7 @@ public class RedisManagerImpl implements RedisManager {
     }
 
     // 플레이어의 인벤토리 아이템 추가/업데이트
-    public void setItemToInventory(String username, String item, int quantity) {
+    public void setItemToInventory(String username, String item, String quantity) {
         String key = username + ":inventory";
         redisTemplate.opsForHash().put(key, item, quantity);
     }

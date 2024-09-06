@@ -30,12 +30,13 @@ public class GameService {
         String username = playerDataFrontDTO.getUsername();
 
         // Redis에서 기존 데이터 가져오기
-        Map<String, Integer> status = redisManager.getPlayerStatus(username);
-        Integer life = (Integer) redisManager.getPlayerLife(username);  // null 가능성을 고려해 Integer로 받음
-        Map<String, Integer> inventory = redisManager.getInventory(username);
+        Map<String, String> status = redisManager.getPlayerStatus(username);
+        String life = (String) redisManager.getPlayerLife(username);  // null 가능성을 고려해 Integer로 받음
+        Map<String, String> inventory = redisManager.getInventory(username);
 
 
         PlayerDataAiDTO playerDataAiDTO;
+
         // 1이면 시작 username, worldview, charsetting, aim 이 들어감
         if(playerDataFrontDTO.getIsStart() == 1){
             playerDataAiDTO = PlayerDataAiDTO.builder()
@@ -44,6 +45,8 @@ public class GameService {
                     .charsetting(playerDataFrontDTO.getCharsetting())
                     .aim(playerDataFrontDTO.getAim())
                     .build();
+            // AI로 보내기 전에 로그로 aim 값 확인
+            gameServiceLogger.info("AI로 보내는 aim 값: {}", playerDataFrontDTO.getAim());
         }else{
             // 0이면 username, status, life, inventory, playlog, dice, selectedchoice
             playerDataAiDTO = PlayerDataAiDTO.builder()
@@ -58,43 +61,36 @@ public class GameService {
         }
 
         // AI 모듈로 데이터 전송 및 응답 처리
-        //Map<String, Object> aiResponse = sendToAiModule(playerDataAiDTO);
         PlayerDataAiDTO aiResponse = sendToAiModule(playerDataAiDTO);
-        // 테스트용
-        gameServiceLogger.info("목표 : ", aiResponse.getAim());
+        // 확인함
+        //gameServiceLogger.info("목표 : {}", aiResponse.getAim());
 
-
-        // 여기서부터는 업데이트 데이터 전송
-        // AI 응답 처리 및 Redis에 저장
-        // aiResponse에는 이제 status, life, inventory, playlog, gptsays, choices, imageurl이 옴.
-        // frontText라는 변수가 있는데 이건 프론트로 전달해줄 스토리를 담고 있는 String형 변수야.
-        // if (life == 0 && aiResponse.get("gptsays") == null) 가 true면  playlog를 frontText에 그대로 저장하고 redis에서 username으로 키값을 접근해서 삭제
-        // if (aiResponse.get("gptsays") != null) 가 true aiResponse.get("playlog") + aiResponse.get("gptsays")를 frontText에 저장하고 redis에서 키값을 접근해서 삭제
-        // 위의 조건 다 해당 안되면 redis에서 username으로 키값을 접근해서 Redis의 playlog를 조회해서 tempStory 변수에 저장하고 aiResponse.get("playlog")값을 더해서 Redis의 username으로 접근해서 Redis의 username으로 접근해서 playlog 키값에 tempStory 저장
-        // redis의 username으로 접근해서 각 status, life, inventory, gptsays를 aiResponse.get("키값")으로 각 키 값에 해당하는 value를 aiResponse에서 찾아서 그걸로 업데이트시킴.
-
-//        String nextStory = (String) aiResponse.get("nextstory");
-//        String gptSays = (String) aiResponse.get("gptsays");
-//
-//        redisManager.setTextKeyTextValue(username, (String) aiResponse.get("worldview"), ":worldview");
         String frontText = null;
-        //gameServiceLogger.info((String) aiResponse.get("life"));
-        int lifeFromAI = aiResponse.getLife();
+        gameServiceLogger.info("피통 : {}", aiResponse.getLife());
+        String lifeFromAI = aiResponse.getLife();
+
+        gameServiceLogger.info("gpt 한줄평 : {}", aiResponse.getGptsays());
         // 게임 오버
-        if(lifeFromAI == 0 && aiResponse.getGptsays() == null){
+        if(lifeFromAI.equals("0") && (aiResponse.getGptsays() == null || aiResponse.getGptsays().isEmpty())){
+            gameServiceLogger.info("게임 오버");
             frontText = aiResponse.getPlaylog();
             redisManager.deleteValue(username);
         }
         // 게임 엔딩
-        else if(aiResponse.getGptsays() != null){
+        else if(aiResponse.getGptsays().length() >= 1){
+            gameServiceLogger.info("게임 엔딩");
             frontText = aiResponse.getPlaylog() + aiResponse.getGptsays();
             redisManager.deleteValue(username);
         }
         // 게임 진행
         else{
+            gameServiceLogger.info(("일반적인 게임 진행"));
             redisManager.setTextKeyTextValue(username, aiResponse.getWorldview(), ":worldview");
+            gameServiceLogger.info("세계관 저장된것 : {}", redisManager.getTextKeyTextValue(username, ":worldview"));
             redisManager.setTextKeyTextValue(username, aiResponse.getCharsetting(), ":charsetting");
+            gameServiceLogger.info("캐릭터 성향 저장된 것 : {}", redisManager.getTextKeyTextValue(username, ":charsetting"));
             redisManager.setTextKeyTextValue(username, aiResponse.getAim(), ":aim");
+            gameServiceLogger.info("캐릭터 목표 : {}", redisManager.getTextKeyTextValue(username, ":aim"));
 
             frontText = aiResponse.getPlaylog();
             String savedText = redisManager.getTextKeyTextValue(username, ":playlog");
@@ -104,18 +100,18 @@ public class GameService {
 
             if(aiResponse.getStatus() != null){
                 // 체크 요망
-                gameServiceLogger.info("스테이터스 : ", aiResponse.getStatus());
+                gameServiceLogger.info("스테이터스 : {}", aiResponse.getStatus());
                 redisManager.setPlayerStatus(username, aiResponse.getStatus());
             }
             if(aiResponse.getLife() != null){
-                gameServiceLogger.info("피통 : ", aiResponse.getLife());
-                Map<String, Integer> playerStatus = aiResponse.getStatus();
-                redisManager.setPlayerLife(username,playerStatus.get("life"));
+                gameServiceLogger.info("피통 : {}", aiResponse.getLife());
+                Map<String, String> playerStatus = aiResponse.getStatus();
+                redisManager.setPlayerLife(username, String.valueOf(aiResponse.getLife()));
             }
             if(aiResponse.getInventory() != null){
-                gameServiceLogger.info("인벤토리 ", aiResponse.getInventory());
-                Map<String, Integer> rawInventory = aiResponse.getInventory();
-                for (Map.Entry<String, Integer> entry : rawInventory.entrySet()) {
+                gameServiceLogger.info("인벤토리 {}", aiResponse.getInventory());
+                Map<String, String> rawInventory = aiResponse.getInventory();
+                for (Map.Entry<String, String> entry : rawInventory.entrySet()) {
                     redisManager.setItemToInventory(username, entry.getKey(), entry.getValue());
                 }
             }
@@ -123,11 +119,11 @@ public class GameService {
         }
 
         // 인벤토리와 스테이터스 가져오기
-        Map<String, Integer> updatedInventory = redisManager.getInventory(username);
-        Map<String, Integer> updatedStatus = redisManager.getPlayerStatus(username);
+        Map<String, String> updatedInventory = redisManager.getInventory(username);
+        Map<String, String> updatedStatus = redisManager.getPlayerStatus(username);
 
         // status에서 근력 값 추출
-        int strength = status.getOrDefault("strength", 0);  // 근력 값이 없을 경우 0으로 설정
+        int strength = Integer.parseInt(status.get("strength")); // 근력 값이 없을 경우 0으로 설정
         int inventoryWeight = redisManager.getInventorySum(username);
         boolean isFull = inventoryWeight > strength;  // 가방이 근력보다 무거운지 여부
 
@@ -139,32 +135,14 @@ public class GameService {
                 .charsetting(null)
                 .aim(null)
                 .status(updatedStatus)
-                // TODO : life가 null임
-                .life((int) redisManager.getPlayerLife(username))
+                // TODO : life가 null임 해결 -> gpt한줄평 default 값이 들어와서 엔딩이라 판단하고 있었음.
+                .life((String) redisManager.getPlayerLife(username))
                 .inventory(updatedInventory)
                 .isfull(isFull)
                 .playlog(redisManager.getTextKeyTextValue(username, ":playlog"))
                 .gptsays(aiResponse.getGptsays())
                 .choices(aiResponse.getChoices())
                 .imageurl(aiResponse.getImageurl())
-                .build();
-    }
-
-    // AI 모듈에 보낼 DTO 생성 (dice는 AI 요청에 포함됨)
-    private PlayerDataAiDTO createPlayerDataAiDTO(PlayerDataFrontDTO playerDataFrontDTO, Map<String, Integer> status, Integer life, Map<String, Integer> inventory) {
-        return PlayerDataAiDTO.builder()
-                .username(playerDataFrontDTO.getUsername())
-                .worldview(playerDataFrontDTO.getWorldview())
-                .charsetting(playerDataFrontDTO.getCharsetting())
-                .aim(playerDataFrontDTO.getAim())
-                .status(status)
-                .life(life)
-                .inventory(inventory)
-                .playlog(playerDataFrontDTO.getPlaylog())
-                .dice((int) (Math.random() * 20) + 1)  // AI 요청 시 dice 값 생성
-                .selectedchoice(playerDataFrontDTO.getSelectedchoice())  // selectedchoice가 null일 수 있으므로 그대로 전달
-                .gptsays(null)  // 처음에는 GPT의 한줄평 없음
-                .choices(playerDataFrontDTO.getChoices())  // 선택지를 그대로 전달 (null 가능)
                 .build();
     }
 
@@ -184,30 +162,13 @@ public class GameService {
 
             // 응답 내용 확인
             PlayerDataAiDTO aiResponse = responseEntity.getBody();
-            gameServiceLogger.info("AI 응답: " + aiResponse);
+            gameServiceLogger.info("AI 응답 전체: {}", aiResponse);  // 전체 DTO를 로그로 출력
+            gameServiceLogger.info("AI 응답에서 aim 값: {}", aiResponse.getAim());  // aim 값만 따로 출력
             return aiResponse;
 
         } catch (Exception e) {
             gameServiceLogger.error("AI 모듈과의 통신 중 오류 발생: " + e.getMessage());
             throw new RuntimeException("AI 모듈과의 통신 중 오류가 발생했습니다.", e);
         }
-    }
-
-    // 프론트에 보낼 DTO 생성 (프론트에는 dice 값을 전달하지 않음)
-    private PlayerDataFrontDTO createPlayerDataFrontDTO(PlayerDataFrontDTO playerDataFrontDTO, Map<String, Integer> updatedStatus, Integer life, Map<String, Integer> updatedInventory, boolean isFull, String nextStory, String gptSays) {
-        return PlayerDataFrontDTO.builder()
-                .username(playerDataFrontDTO.getUsername())
-                .worldview(playerDataFrontDTO.getWorldview())
-                .charsetting(playerDataFrontDTO.getCharsetting())
-                .aim(playerDataFrontDTO.getAim())
-                .status(updatedStatus)
-                .life(life)
-                .inventory(updatedInventory)
-                .isfull(isFull)
-                .playlog(nextStory)
-                .gptsays(gptSays)
-                .selectedchoice(playerDataFrontDTO.getSelectedchoice())
-                .choices(playerDataFrontDTO.getChoices())  // 선택지 추가
-                .build();
     }
 }

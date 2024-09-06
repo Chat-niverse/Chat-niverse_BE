@@ -15,9 +15,9 @@ public class PlayerDataAiDTO {
     private String charsetting;   // 캐릭터 설정
     private String aim;           // 플레이어 목표
 
-    private Map<String, Integer> status;    // 플레이어 현재 status, key는 스탯 이름, value는 값
-    private Integer life;         // 플레이어의 life (null 허용)
-    private Map<String, Integer> inventory; // 인벤토리 아이템과 수량 (null 허용)
+    private Map<String, String> status;    // 플레이어 현재 status, key는 스탯 이름, value는 값
+    private String life;         // 플레이어의 life (null 허용)
+    private Map<String, String> inventory; // 인벤토리 아이템과 수량 (null 허용)
     private String playlog;       // 플레이어의 플레이 로그 (null 허용)
 
     private Integer dice;         // 주사위 값 (null 허용, 기본형 int 대신 Integer 사용)
