@@ -124,7 +124,7 @@ public class GameService {
         Map<String, String> updatedStatus = redisManager.getPlayerStatus(username);
 
         // status에서 근력 값 추출
-        int strength = redisManager.getPlayerStrength(username); // 근력 값이 없을 경우 0으로 설정
+        int strength = Integer.parseInt(redisManager.getPlayerStrength(username)); // 근력 값이 없을 경우 0으로 설정
         int inventoryWeight = redisManager.getInventorySum(username);
         boolean isFull = inventoryWeight > strength;  // 가방이 근력보다 무거운지 여부
 

@@ -116,9 +116,9 @@ public class RedisManagerImpl implements RedisManager {
     System.out.println("Strength: " + strength);
      */
     // 플레이어 근력 조회
-    public Integer getPlayerStrength(String username) {
+    public String getPlayerStrength(String username) {
         String key = username + ":status";
-        return (Integer) redisTemplate.opsForHash().get(key, "strength");
+        return (String) redisTemplate.opsForHash().get(key, "strength");
     }
 
     // 인벤토리에 새 아이템 추가
