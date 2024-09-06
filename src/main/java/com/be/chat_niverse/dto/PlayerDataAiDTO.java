@@ -2,9 +2,12 @@ package com.be.chat_niverse.dto;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
+
 import java.util.Map;
 
 @Getter
+@Setter
 @Builder
 public class PlayerDataAiDTO {
     private String username;      // 플레이어 닉네임

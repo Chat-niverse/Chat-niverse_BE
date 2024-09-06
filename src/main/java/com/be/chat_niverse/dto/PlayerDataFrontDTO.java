@@ -2,10 +2,12 @@ package com.be.chat_niverse.dto;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Map;
 
 @Getter
+@Setter
 @Builder
 public class PlayerDataFrontDTO {
     private int isStart; // 시작인지 판단
