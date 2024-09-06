@@ -46,7 +46,7 @@ public class RedisManagerImpl implements RedisManager {
     // 플레이 로그 :playlog
     // 플레이 요약(엔딩) :ending
     // 오버 데이터 :gameover
-    // GPT한줄평 :gpteval
+    // GPT한줄평 :gptsays
     public void setTextKeyTextValue(String username, String value, String innerKey) {
         String key = username + innerKey;
         redisTemplate.opsForValue().set(key, value);
