@@ -16,8 +16,9 @@ public class PlayerDataFrontDTO {
     private Map<String, Object> status; // 플레이어 현재 status
     private int life; // 플레이어 life, 3으로 시작 0이 되면 게임오버
     private Map<String, Object> inventory; // 플레이어 인벤토리
+    private boolean isfull; // 플레이어 가방 가득 찼는지 여부
     private String playlog; // 플레이어 플레이로그
     private String gptsays; // 플레이어가 목표를 달성하면 보여줄 한줄 평
 
-    private String selectedchoice; // 플레이어가
+    private String selectedchoice; // 플레이어가 선택한 선택지
 }
