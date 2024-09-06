@@ -1,7 +1,10 @@
 package com.be.chat_niverse.service;
 
+import com.be.chat_niverse.controller.GameController;
 import com.be.chat_niverse.dto.PlayerDataAiDTO;
 import com.be.chat_niverse.dto.PlayerDataFrontDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -16,6 +19,7 @@ import java.util.Map;
 public class GameService {
 
     private final RedisManagerImpl redisManager;
+    private static final Logger gameServiceLogger = LoggerFactory.getLogger(GameService.class);
 
     public GameService(RedisManagerImpl redisManager) {
         this.redisManager = redisManager;
@@ -54,6 +58,8 @@ public class GameService {
 
         // AI 모듈로 데이터 전송 및 응답 처리
         Map<String, Object> aiResponse = sendToAiModule(playerDataAiDTO);
+        // TODO : aiResponse is NULL
+
 
         // 여기서부터는 업데이트 데이터 전송
         // AI 응답 처리 및 Redis에 저장
@@ -69,6 +75,7 @@ public class GameService {
 //
 //        redisManager.setTextKeyTextValue(username, (String) aiResponse.get("worldview"), ":worldview");
         String frontText = null;
+        gameServiceLogger.info((String) aiResponse.get("life"));
         Integer lifeFromAI = Integer.parseInt((String) aiResponse.get("life"));
         // 게임 오버
         if(lifeFromAI == 0 && aiResponse.get("gptsays") == null){
@@ -160,10 +167,20 @@ public class GameService {
         headers.set("Content-Type", "application/json");
 
         HttpEntity<PlayerDataAiDTO> request = new HttpEntity<>(playerDataAiDTO, headers);
-        String aiUrl = "http://13.124.84.163/ai/process";
+        String aiUrl = "http://52.79.97.201:5000/ai/process";
 
-        ResponseEntity<Map> responseEntity = restTemplate.exchange(aiUrl, HttpMethod.POST, request, Map.class);
-        return responseEntity.getBody();
+        try {
+            ResponseEntity<Map> responseEntity = restTemplate.exchange(aiUrl, HttpMethod.POST, request, Map.class);
+
+            // 응답 내용 확인
+            Map<String, Object> aiResponse = responseEntity.getBody();
+            gameServiceLogger.info("AI 응답: " + aiResponse);
+            return aiResponse;
+
+        } catch (Exception e) {
+            gameServiceLogger.error("AI 모듈과의 통신 중 오류 발생: " + e.getMessage());
+            throw new RuntimeException("AI 모듈과의 통신 중 오류가 발생했습니다.", e);
+        }
     }
 
     // 프론트에 보낼 DTO 생성 (프론트에는 dice 값을 전달하지 않음)
