@@ -135,7 +135,6 @@ public class GameService {
                 .charsetting(null)
                 .aim(null)
                 .status(updatedStatus)
-                // TODO : life가 null임 해결 -> gpt한줄평 default 값이 들어와서 엔딩이라 판단하고 있었음.
                 .life((String) redisManager.getPlayerLife(username))
                 .inventory(updatedInventory)
                 .isfull(isFull)
