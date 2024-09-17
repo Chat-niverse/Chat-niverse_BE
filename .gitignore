@@ -43,6 +43,8 @@ out/
 application-API-KEY.yml
 ### logs ###
 .log
+### DS_Store ###
+.DS_Store
 
 ### ds_store ###
 .DS_Store
